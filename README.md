@@ -1,1 +1,2 @@
-https://www.youtube.com/embed/zw14x1eIjCI?si=3Zvw7id5sLq0NooO
+[![Assista no YouTube](https://img.youtube.com/vi/SEU_VIDEO_ID/0.jpg)](https://www.youtube.com/watch?v=SEU_VIDEO_ID)
+
