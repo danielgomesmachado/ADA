@@ -1,204 +1,135 @@
+package sistemabancario;
 
+import java.io.*;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
-class Transacao {
-    String tipo;
-    double valor;
-    double saldoApos;
-    Date dataHora;
-
-    public Transacao(String tipo, double valor, double saldoApos) {
-        this.tipo = tipo;
-        this.valor = valor;
-        this.saldoApos = saldoApos;
-        this.dataHora = new Date();
-    }
-
-    public String toString() {
-        return tipo + " de R$ " + valor + " | Saldo após: R$ " + saldoApos + " | Data: " + dataHora;
-    }
-}
-
-abstract class Conta {
-    String numero;
-    String titular;
-    double saldo;
-    ArrayList<Transacao> historico = new ArrayList<>();
-
-    public Conta(String numero, String titular, double saldoInicial) {
-        this.numero = numero;
-        this.titular = titular;
-        this.saldo = saldoInicial;
-    }
-
-    public void depositar(double valor) {
-        saldo += valor;
-        historico.add(new Transacao("Depósito", valor, saldo));
-    }
-
-    public abstract void sacar(double valor);
-
-    public void extrato() {
-        for (Transacao t : historico) {
-            System.out.println(t);
-        }
-    }
-}
-
-class ContaPoupanca extends Conta {
-    public ContaPoupanca(String numero, String titular, double saldoInicial) {
-        super(numero, titular, saldoInicial);
-    }
-
-    public void sacar(double valor) {
-        if (valor <= saldo) {
-            saldo -= valor;
-            historico.add(new Transacao("Saque", valor, saldo));
-        } else {
-            System.out.println("Saldo insuficiente.");
-        }
-    }
-}
-
-class ContaCorrente extends Conta {
-    double limite;
-
-    public ContaCorrente(String numero, String titular, double saldoInicial, double limite) {
-        super(numero, titular, saldoInicial);
-        this.limite = limite;
-    }
-
-    public void sacar(double valor) {
-        if (valor <= saldo + limite) {
-            saldo -= valor;
-            historico.add(new Transacao("Saque", valor, saldo));
-        } else {
-            System.out.println("Limite insuficiente.");
-        }
-    }
-}
-
 public class SistemaBancario {
+    static class Usuario {
+        private String nome;
+        private String cpf;
+        public Usuario(String nome, String cpf) {
+            this.nome = nome;
+            this.cpf = cpf;
+        }
+        public String getNome() { return nome; }
+        public String getCpf() { return cpf; }
+    }
+
+    static class Conta {
+        private String numero;
+        private double saldo;
+        public Conta(String numero, double saldoInicial) {
+            this.numero = numero;
+            this.saldo = saldoInicial;
+        }
+        public String getNumero() { return numero; }
+        public double getSaldo() { return saldo; }
+        public void depositar(double valor) { saldo += valor; }
+        public boolean sacar(double valor) {
+            if (valor <= saldo) { saldo -= valor; return true; }
+            return false;
+        }
+    }
+
+    static class Transacao {
+        private String tipo;
+        private double valor;
+        private String dataHora;
+        public Transacao(String tipo, double valor) {
+            this.tipo = tipo;
+            this.valor = valor;
+            this.dataHora = LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss"));
+        }
+        public String toString() {
+            return tipo + " - R$ " + valor + " - " + dataHora;
+        }
+    }
+
+    private static Usuario usuario;
+    private static Conta conta;
+    private static List<Transacao> transacoes = new ArrayList<>();
+
     public static void main(String[] args) {
+        System.setOut(new java.io.PrintStream(System.out, true, java.nio.charset.StandardCharsets.UTF_8));
         Scanner sc = new Scanner(System.in);
-        ArrayList<Conta> contas = new ArrayList<>();
-
+        System.out.print("Nome: ");
+        String nome = sc.nextLine();
+        System.out.print("CPF: ");
+        String cpf = sc.nextLine();
+        usuario = new Usuario(nome, cpf);
+        System.out.print("Número da conta: ");
+        String numeroConta = sc.nextLine();
+        conta = new Conta(numeroConta, 0);
+        carregarDados();
         while (true) {
-            System.out.println("\n1-Criar Conta | 2-Depositar | 3-Sacar | 4-Extrato | 5-Sair");
-            String opcao = sc.nextLine();
-
-            if (opcao.equals("1")) {
-                try {
-                    System.out.println("Tipo (1-Corrente / 2-Poupança):");
-                    String tipo = sc.nextLine();
-                    System.out.println("Número da conta:");
-                    String numero = sc.nextLine();
-
-                    boolean existe = false;
-                    for (Conta c : contas) {
-                        if (c.numero.equals(numero)) {
-                            existe = true;
-                            break;
-                        }
-                    }
-
-                    if (existe) {
-                        System.out.println("Conta com esse número já existe.");
-                        continue;
-                    }
-
-                    System.out.println("Nome do titular:");
-                    String nome = sc.nextLine();
-                    System.out.println("Saldo inicial:");
-                    double saldo = Double.parseDouble(sc.nextLine());
-
-                    if (tipo.equals("1")) {
-                        System.out.println("Limite cheque especial:");
-                        double limite = Double.parseDouble(sc.nextLine());
-                        contas.add(new ContaCorrente(numero, nome, saldo, limite));
-                    } else {
-                        contas.add(new ContaPoupanca(numero, nome, saldo));
-                    }
-                } catch (Exception e) {
-                    System.out.println("Erro ao criar conta.");
+            System.out.println("1- Depositar  2- Sacar  3- Extrato  4- Sair");
+            int op = sc.nextInt();
+            if (op == 1) {
+                System.out.print("Valor: ");
+                double v = sc.nextDouble();
+                conta.depositar(v);
+                transacoes.add(new Transacao("Depósito", v));
+                salvarDados();
+            } else if (op == 2) {
+                System.out.print("Valor: ");
+                double v = sc.nextDouble();
+                if (conta.sacar(v)) {
+                    transacoes.add(new Transacao("Saque", v));
+                    salvarDados();
+                } else {
+                    System.out.println("Saldo insuficiente");
                 }
-
-            } else if (opcao.equals("2")) {
-                try {
-                    System.out.println("Número da conta:");
-                    String numero = sc.nextLine();
-                    Conta conta = null;
-
-                    for (Conta c : contas) {
-                        if (c.numero.equals(numero)) {
-                            conta = c;
-                            break;
-                        }
-                    }
-
-                    if (conta == null) {
-                        System.out.println("Conta não encontrada.");
-                        continue;
-                    }
-
-                    System.out.println("Valor do depósito:");
-                    double valor = Double.parseDouble(sc.nextLine());
-                    conta.depositar(valor);
-
-                } catch (Exception e) {
-                    System.out.println("Erro no depósito.");
-                }
-
-            } else if (opcao.equals("3")) {
-                try {
-                    System.out.println("Número da conta:");
-                    String numero = sc.nextLine();
-                    Conta conta = null;
-
-                    for (Conta c : contas) {
-                        if (c.numero.equals(numero)) {
-                            conta = c;
-                            break;
-                        }
-                    }
-
-                    if (conta == null) {
-                        System.out.println("Conta não encontrada.");
-                        continue;
-                    }
-
-                    System.out.println("Valor do saque:");
-                    double valor = Double.parseDouble(sc.nextLine());
-                    conta.sacar(valor);
-
-                } catch (Exception e) {
-                    System.out.println("Erro no saque.");
-                }
-
-            } else if (opcao.equals("4")) {
-                System.out.println("Número da conta:");
-                String numero = sc.nextLine();
-                Conta conta = null;
-
-                for (Conta c : contas) {
-                    if (c.numero.equals(numero)) {
-                        conta = c;
-                        break;
-                    }
-                }
-
-                if (conta == null) {
-                    System.out.println("Conta não encontrada.");
-                    continue;
-                }
-
-                conta.extrato();
-
-            } else if (opcao.equals("5")) {
+            } else if (op == 3) {
+                System.out.println("Usuário: " + usuario.getNome());
+                System.out.println("Conta: " + conta.getNumero());
+                List<Transacao> copia = new ArrayList<>(transacoes);
+                Collections.reverse(copia);
+                for (Transacao t : copia) System.out.println(t);
+                System.out.println("Saldo atual: R$ " + conta.getSaldo());
+            } else {
                 break;
             }
         }
-
         sc.close();
+    }
+
+    private static void salvarDados() {
+        try {
+            FileWriter fw = new FileWriter("usuario_" + usuario.getCpf() + ".txt");
+            fw.write(usuario.getNome() + ";" + usuario.getCpf());
+            fw.close();
+            fw = new FileWriter("conta_" + usuario.getCpf() + ".txt");
+            fw.write(conta.getNumero() + ";" + conta.getSaldo());
+            fw.close();
+            fw = new FileWriter("transacoes_" + usuario.getCpf() + ".txt");
+            for (Transacao t : transacoes) fw.write(t.toString() + "\n");
+            fw.close();
+        } catch (IOException e) {}
+    }
+
+    private static void carregarDados() {
+        try {
+            File f = new File("conta_" + usuario.getCpf() + ".txt");
+            if (f.exists()) {
+                Scanner s = new Scanner(f);
+                String[] dados = s.nextLine().split(";");
+                conta = new Conta(dados[0], Double.parseDouble(dados[1]));
+                s.close();
+            }
+            File ft = new File("transacoes_" + usuario.getCpf() + ".txt");
+            if (ft.exists()) {
+                Scanner s = new Scanner(ft);
+                while (s.hasNextLine()) {
+                    String linha = s.nextLine();
+                    String[] p = linha.split(" - R\\$ ");
+                    String tipo = p[0];
+                    double valor = Double.parseDouble(p[1].split(" - ")[0]);
+                    transacoes.add(new Transacao(tipo, valor));
+                }
+                s.close();
+            }
+        } catch (Exception e) {}
     }
 }
